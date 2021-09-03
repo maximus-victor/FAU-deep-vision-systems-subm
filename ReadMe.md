@@ -2,7 +2,7 @@
 	<div align="center">
 		<img src="images/logos/FAU_logo.png" width="700">
 		<h1><b>Introduction to Computer Science</b></h1>
-		<h3>Chair of Digital Industrial Service Systems</h3>
+		<h3>Development of Deep Vision Systems</h3>
 		<img src="images/logos/win_crop.png" height="170">˘
 	</div>
 </div>
