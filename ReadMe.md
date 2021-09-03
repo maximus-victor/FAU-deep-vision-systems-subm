@@ -1,8 +1,7 @@
 <div style="border-bottom:none;">
 	<div align="center">
 		<img src="images/logos/FAU_logo.png" width="700">
-		<h1><b>Introduction to Computer Science</b></h1>
-		<h3>Development of Deep Vision Systems</h3>
+		<h1><b>Development of Deep Vision Systems</b></h1>
 		<img src="images/logos/win_crop.png" height="170">˘
 	</div>
 </div>
