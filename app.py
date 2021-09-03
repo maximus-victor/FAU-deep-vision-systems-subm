@@ -58,8 +58,8 @@ from pytorch_grad_cam import GradCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XG
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
 from html_mardown import app_off,app_off2, model_predicting, loading_bar, result_pred, image_uploaded_success, more_options, class0, class1, class2, class3, class4, s_load_bar, class0_side, class1_side, class2_side, class3_side, class4_side, unknown, unknown_side, unknown_w, unknown_msg
-from datasets import WaferDataset, classes
-from models import RegNet, get_faster_rcnn
+from datasets_streamlit import WaferDataset, classes
+from models_streamlit import RegNet, get_faster_rcnn
 
 DIR_DATEN = "/content/drive/MyDrive/DeepVis/data"   # make sure to always adapt this to your own folser structure
 DIR_DATEN_01 = os.path.join(DIR_DATEN, "01_Daten")
