@@ -11,20 +11,18 @@ This is the repository for our submission in the course "Development of Deep Vis
 
 ## Structure of this repository
 ```
-+-- WebApplication
-|   +-- app.py       			
-|   +-- app_runner.ipynb
-|   +-- datasets_streamlit.py
-|   +-- init.txt
++-- app.py       		| web app implementation	
++-- app_runner.ipynb		| jupyter notebook to START the web app
++-- datasets_streamlit.py	| datasets' classes structured for the web app
 +-- images
-|   +--- logos      | logos
+|   +--- logos      		| logos
 |   +--- banner.png
-+-- models      | models
++-- models      		| models folder used for the web app
 |   +-- TODO_model.rtf
-+-- ReadMe.md 					| ReadMe
-+-- html_mardown.py
-+-- label_encoder.pkl
-+-- label_encoder_11.pkl
-+-- label_encoder_OD.pkl
-+-- models_streamlit.py
++-- ReadMe.md			| ReadMe
++-- html_mardown.py		| markdowns used in web app
++-- label_encoder.pkl		| label encoder saved for the web app
++-- label_encoder_11.pkl	| label encoder (11 classes) saved for the web app
++-- label_encoder_OD.pkl	| label encoder from object detection saved for the web app
++-- models_streamlit.py		| models' classes structured for the web app
 ```
