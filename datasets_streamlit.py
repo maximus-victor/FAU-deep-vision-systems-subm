@@ -1,14 +1,16 @@
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import pickle
+#from libtiff import TIFF
 
-
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import glob
 import random
 import joblib
 import os
+import cv2
 
 import torch
 import torchvision
@@ -55,9 +57,12 @@ classes= pd.DataFrame(classes_map)
 
 
 class WaferDataset(Dataset):
-    def __init__(self, path, model=None):
+    def __init__(self, path, model=None, uploaded_image=None, uploaded_state=False, demo_state=True):
         self.X = path
         self.model = model
+        self.uploaded_image = uploaded_image
+        self.uploaded_state= uploaded_state
+        self.demo_state= demo_state
         if self.model in ["UnNet", "RegNet", "VicNet"]:
           self.infilegrayscale = True
         else:
@@ -93,11 +98,19 @@ class WaferDataset(Dataset):
             ])
         
     def __len__(self):
-        return (len(self.X))
+        if self.uploaded_state:
+            return (1)
+        else:
+            return (len(self.X))
     
     def __getitem__(self, i):
-        image = load_image(self.X, self.infilegrayscale)
+        if self.demo_state:
+            image = load_image(self.X, self.infilegrayscale)
+        if self.uploaded_state:
+            image = plt.imread(self.uploaded_image)
+            image = Image.fromarray(image)
+            #image = cv2.imdecode(np.fromstring(self.uploaded_image.read(), np.uint8), 1)
         if self.model is not None:
-          image = self.preprocess(image)
+            image = self.preprocess(image)
         # print(image.shape)
         return torch.tensor(image, dtype=torch.float)
