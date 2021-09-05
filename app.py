@@ -17,7 +17,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import cv2
 import pickle
-from skimage import io
+from skimage.color import rgb2gray
+import skimage
 
 from imutils import paths
 from sklearn import preprocessing
@@ -40,6 +41,7 @@ import coco_eval
 import coco_utils
 import transforms
 
+from skimage.color import rgb2gray, gray2rgb
 
 import torch
 from torchvision import transforms, datasets, models
@@ -75,8 +77,8 @@ model_OD.load_state_dict(torch.load(Path(model_OD_path), map_location=torch.devi
 states_OD = torch.load(Path(model_OD_path), map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
 
 #DataLoader for pytorch dataset
-def Loader(img_path=None,uploaded_image=None, upload_state=False, demo_state=True, model='RegNet'):
-    test_dataset = WaferDataset(img_path, model=model)
+def Loader(img_path=None,uploaded_image=None, uploaded_state=False, demo_state=True, model='RegNet'):
+    test_dataset = WaferDataset(path=img_path, model=model, uploaded_image=uploaded_image, uploaded_state=uploaded_state, demo_state=demo_state)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0)
     return test_loader
     
@@ -101,7 +103,10 @@ st.markdown('***')
 #model= "saved_models/" + style_name + ".pth"
 model_name = "RegNet"
 model = "/content/drive/MyDrive/DEEPVIS/models/" + str(model_name)
-model_OD_path = "/content/drive/MyDrive/DEEPVIS/models/od_faster_rcnn6classes.pth"
+model_OD_path = "/content/drive/MyDrive/DEEPVIS/models/faster_rcnn_model.pth"
+
+uploaded_image = None
+decision_boundary = 0.8
 
 
 # get all the image paths
@@ -133,24 +138,25 @@ st.sidebar.image(banner_path,use_column_width=True)
 
 #Set the selectbox for demo images
 st.write('**Select a model for Image Classification**')
-menu_model = ['Select a model','RegNet', 'VGG16', 'ResNet']
+menu_model = ['Choose ..','RegNet', 'VGG16', 'ResNet']
 choice = st.selectbox('Select a model', menu_model)
 
 
-CHOICES_IMG = {0: 'Select an image', img_1_path: 'Image 1', img_2_path: 'Image 2', img_3_path: 'Image 3'}
+CHOICES_IMG = {0: 'Choose ..', img_1_path: 'Image 1', img_2_path: 'Image 2', img_3_path: 'Image 3'}
 
 def format_func_img(sel_img_path):
     return CHOICES_IMG[sel_img_path]
 
-sel_img_path = st.selectbox("Select an option", options=list(CHOICES_IMG.keys()), format_func=format_func_img)
+sel_img_path = st.selectbox("Select a test image", options=list(CHOICES_IMG.keys()), format_func=format_func_img)
 
 #Set the box for the user to upload an image
-st.write("**Upload your Image**")
-uploaded_image = st.file_uploader("Upload your image in JPG or PNG format", type=["jpg", "png"])
+st.write("**Upload your an image**")
+uploaded_image = st.file_uploader("Upload your image in JPG or PNG format", type=["jpg", "png", "tiff", "tif"])
 
-  
+decision_boundary = st.slider("Decision threshold of Object Detection", min_value=0., max_value=1.0, step=0.1, value=0.8)
+
 #Function to deploy the model and print the report
-def deploy(file_path=None,uploaded_image=uploaded_image, uploaded=False, demo=True):
+def deploy(file_path=None,uploaded_image=uploaded_image, uploaded_state=False, demo_state=True) :
     #Load the model and the weights
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = RegNet()
@@ -160,14 +166,13 @@ def deploy(file_path=None,uploaded_image=uploaded_image, uploaded=False, demo=Tr
     #model.load_state_dict(states)
         
     #Display the uploaded/selected image
-    st.markdown('***')
     st.markdown(model_predicting, unsafe_allow_html=True)
-    if demo:
-        test_loader= Loader(img_path=file_path) 
+    if demo_state:
+        test_loader= Loader(img_path=file_path, uploaded_image=None, uploaded_state=False, demo_state=True) 
         image_1 = cv2.imread(file_path)
-    if uploaded:
-        test_loader= Loader(uploaded_image=uploaded_image, upload_state=True, demo_state=False)
-        image_1 = file_path
+    if uploaded_state:
+        test_loader= Loader(img_path=None, uploaded_image=uploaded_image, uploaded_state=True, demo_state=False)
+        image_1 = plt.imread(uploaded_image)
     
     #for img in test_loader:
     #Inference
@@ -176,13 +181,17 @@ def deploy(file_path=None,uploaded_image=uploaded_image, uploaded=False, demo=Tr
 
     st.write("Prediction - Index:", pred[0], "-> Label:", lb.inverse_transform(list(pred))[0])
     
-def apply_gradCAM(img_path):
+def apply_gradCAM(img_path=None,uploaded_image=None, uploaded_state=False, demo_state=True):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = RegNet()
     model.load_state_dict(torch.load(Path(my_path + 'models/RegNet.pth'), map_location=device), strict=True)
     target_layer = model.conv3
-    test_loader= Loader(img_path=img_path) 
+    if demo_state:
+        test_loader= Loader(img_path=img_path, uploaded_image=None, uploaded_state=False, demo_state=True) 
+    if uploaded_state:
+        test_loader= Loader(img_path=None, uploaded_image=uploaded_image, uploaded_state=True, demo_state=False)
+
     input_tensor = next(iter(test_loader))
     
     # Create an input tensor image for your model..
@@ -202,12 +211,22 @@ def apply_gradCAM(img_path):
     
     # In this example grayscale_cam has only one image in the batch:
     grayscale_cam = grayscale_cam[0, :]
-    visualization = show_cam_on_image((cv2.resize(cv2.imread(img_path), (256,256))/255.).astype(np.float32), grayscale_cam, use_rgb=False)
+    if demo_state:
+        visualization = show_cam_on_image((cv2.resize(cv2.imread(img_path), (256,256))/255.).astype(np.float32), grayscale_cam, use_rgb=False)
+    if uploaded_state:
+        img = gray2rgb(np.array(plt.imread(uploaded_image)))
+
+        visualization = show_cam_on_image((cv2.resize(img, (256,256))/255.).astype(np.float32), grayscale_cam, use_rgb=False)
+
     st.image(visualization, width=256, channels='BGR')
     
-def bounding_box_prediction(pretrained_model, img_path, detection_threshold=0.8):
+def bounding_box_prediction(pretrained_model, img_path, detection_threshold=0.8, uploaded_image=None, uploaded_state=False, demo_state=True):
 
-    test_loader= Loader(img_path=img_path, model="ObjectDetect") 
+    if demo_state:
+        test_loader= Loader(img_path=img_path, uploaded_image=None, uploaded_state=False, demo_state=True,  model="ObjectDetect")
+    if uploaded_state:
+        test_loader= Loader(img_path=None, uploaded_image=uploaded_image, uploaded_state=True, demo_state=False,  model="ObjectDetect")
+
     input_tensor = next(iter(test_loader)) 
     
     runtime = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -263,25 +282,68 @@ def bounding_box_prediction(pretrained_model, img_path, detection_threshold=0.8)
 
 
 
-def show_img(file_path=None,uploaded_image=uploaded_image, uploaded=False, demo=True):
-    if isinstance(file_path, str):
-        if demo:
-            test_loader= Loader(img_path=file_path) 
+def show_img(file_path=None,uploaded_image=uploaded_image, uploaded_state=False, demo_state=True):
+    if demo_state:
+        if isinstance(file_path, str):
+            test_loader = Loader(img_path=file_path, uploaded_image=None, uploaded_state=False, demo_state=True) 
             image_1 = cv2.imread(file_path)
-        if uploaded:
-            test_loader= Loader(uploaded_image=uploaded_image, upload_state=True, demo_state=False)
-            image_1 = file_path
+            st.sidebar.markdown(image_uploaded_success, unsafe_allow_html=True)
+            st.sidebar.image(image_1, width=301, channels='BGR')
+    if uploaded_state:
+        test_loader = Loader(img_path=None, uploaded_image=uploaded_image, uploaded_state=True, demo_state=False)
+        image_1 = plt.imread(uploaded_image)
         st.sidebar.markdown(image_uploaded_success, unsafe_allow_html=True)
-        st.sidebar.image(image_1, width=301, channels='BGR')
+        st.sidebar.image(image_1, width=301)
 
-show_img(sel_img_path)
+#Deploy the model if the user uploads an image
+if uploaded_image is not None:
+    #Close the demo
+    sel_img_path=0
+    #Deploy the model with the uploaded image
+    show_img(file_path=None, uploaded_image=uploaded_image, uploaded_state=True, demo_state=False)
+
+
+#Deploy the model if the user selects Image 1
+if sel_img_path== img_1_path:
+    show_img(file_path=sel_img_path, uploaded_image=None, uploaded_state=False, demo_state=True)
+    del uploaded_image
+
+
+#Deploy the model if the user selects Image 2
+if sel_img_path== img_2_path:
+    show_img(file_path=sel_img_path, uploaded_image=None, uploaded_state=False, demo_state=True)
+    del uploaded_image
+
+
+
+#Deploy the model if the user selects Image 3
+if sel_img_path== img_3_path:
+    show_img(file_path=sel_img_path, uploaded_image=None, uploaded_state=False, demo_state=True)
+    del uploaded_image
+
+st.markdown('***')
 
 
 if st.button('Classifiy (Predict)'):
-    deploy(sel_img_path)
+    try:
+        if uploaded_image is not None:
+            deploy(file_path=None,uploaded_image=uploaded_image, uploaded_state=True, demo_state=False)
+    except:
+        deploy(sel_img_path)
+    
+    
     
 if st.button('Explain'):
-    apply_gradCAM(sel_img_path)
-
+    try:
+        if uploaded_image is not None:
+            apply_gradCAM(img_path=None,uploaded_image=uploaded_image, uploaded_state=True, demo_state=False)
+    except:
+        apply_gradCAM(sel_img_path)
+        
+        
 if st.button('Object Detect'):
-    bounding_box_prediction(model_OD, sel_img_path)
+    try:
+        if uploaded_image is not None:
+            bounding_box_prediction(model_OD, img_path=None, detection_threshold = decision_boundary, uploaded_image=uploaded_image, uploaded_state=True, demo_state=False)
+    except:
+        bounding_box_prediction(model_OD, sel_img_path, detection_threshold = decision_boundary)
